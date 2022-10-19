@@ -10,5 +10,7 @@ import org.springframework.stereotype.Component;
 public class ApiProperties {
   private String googleSafeBrowsing;
   private String techniknews;
+  private String ipblacklist;
+  private String ipblacklistKey;
 
 }

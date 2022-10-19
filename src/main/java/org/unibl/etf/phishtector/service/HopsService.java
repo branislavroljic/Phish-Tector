@@ -17,6 +17,8 @@ import org.unibl.etf.phishtector.model.Hop;
 @RequiredArgsConstructor
 public class HopsService {
 
+  private final IPService ipService;
+
   public List<Hop> parseHopsFromReceivedFields(List<Field> fields) {
     Pattern receivedPattern = Pattern.compile("(?:(Received:)|\\G(?!\\A))" +
         "\\s*(from|by|with|id|via|for|;)" +
@@ -33,6 +35,15 @@ public class HopsService {
       }
     });
     return hops;
+  }
+
+  public void investigateHops(List<Hop> hops){
+    hops.forEach(hop -> {
+      if(hop.getFrom() != null) {
+        hop.setIpAnalysisResponse(ipService.investigateIPAddress(hop));
+        hop.setBlacklisted(ipService.checkBlacklistForIPAddress(hop).isBlacklisted());
+      }else hop.setIpAnalysisResponse(null);
+    });
   }
 
   private void processHop(Field field, Pattern pattern, MailDateFormat mailDateFormat,

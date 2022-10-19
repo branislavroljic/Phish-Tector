@@ -24,7 +24,6 @@ import org.unibl.etf.phishtector.response.MailAnalysisResponse;
 import org.unibl.etf.phishtector.response.dkim.DKIMVerificationResponse;
 import org.unibl.etf.phishtector.response.dmarc.DMARCVerificationResponse;
 import org.unibl.etf.phishtector.response.spf.SPFVerificationResponse;
-import org.unibl.etf.phishtector.response.techniknews.IPAnalysisResponse;
 import org.unibl.etf.phishtector.response.url.URLResponse;
 import tech.blueglacier.email.Email;
 import tech.blueglacier.parser.CustomContentHandler;
@@ -43,48 +42,13 @@ public class MailService {
 
   public MailAnalysisResponse analyzeMail(MultipartFile mailFile)
       throws IOException, MimeException, MessagingException {
-//    Pattern pattern =
-//        Pattern.compile(mailHeaderProperties.getDelimiter() + mailHeaderProperties.getReceivedField());
-//    List<String> lines = new ArrayList<>();
-//    new BufferedReader(new InputStreamReader(mailFile.getInputStream(), StandardCharsets.UTF_8))
-//        .lines()
-//        .forEach(lines::add);
-//    lines.forEach(l -> System.out.println("= " + l));
-    /*MimeMessage mimeMessageObj = new MimeMessage(null, mailFile.getInputStream());
-
-    LinkedList<HashMap<String, String>> receivedChain = new LinkedList<>();
-    Enumeration<Header> headers = mimeMessageObj.getAllHeaders();
-
-    Pattern p = Pattern.compile("(?:(Received:)|\\G(?!\\A))" +
-        "\\s*(from|by|with|id|via|for|;)" +
-        "\\s*(\\S+?(?:\\s+\\S+?)*?)\\s*" +
-        "(?=Received:|by|with|id|via|for|;|\\z)");
-
-    while (headers.hasMoreElements()) {
-      Header headerField = headers.nextElement();
-    //  System.out.println("=" + next.getName() + " : " + next.getValue());
-      if (headerField.getName().equals("Received")) {
-
-      }*/
 
     MimeMessage mimeMessageObj = new MimeMessage(null, mailFile.getInputStream());
 
     //List<Attachment> attachments = email.getAttachments();
 
-//    Attachment calendar = email.getCalendarBody();
-//    Attachment htmlBody = email.getHTMLEmailBody();
-//    Attachment plainText = email.getPlainTextEmailBody();
-//
-//    String to = email.getToEmailHeaderValue();
-//    String cc = email.getCCEmailHeaderValue();
-//    String from = email.getFromEmailHeaderValue();
-
     Email email = getEmail(mailFile);
     List<Field> fields = email.getHeader().getFields();
-
-//    if (fields.stream().filter(f -> f.getName().equals("Return-Path")).count() > 1) {
-//      System.out.println("Pronadjena vise od dva Return-Path polja, POSSIBLE SPAM MESSAGE");
-//    }
 
     String returnPathDomain = Util.getReturnPathDomain(fields);
 
@@ -93,9 +57,7 @@ public class MailService {
 
     List<Hop> hops = hopsService.parseHopsFromReceivedFields(fields);
 
-    hops.forEach(hop -> hop.setIpAnalysisResponse(ipService.investigateIPAddress(hop)));
-
-    //List<IPAnalysisResponse> ipAnalysisResponses = ipService.investigateIPAddresses(hops);
+    hopsService.investigateHops(hops);
 
     DMARCVerificationResponse dmarcVerificationResponse = new DMARCVerificationResponse();
     Map<String, String> dmarcTagValueMap = new HashMap<>();
@@ -129,11 +91,13 @@ public class MailService {
     }
 
     SPFVerificationResponse spfVerificationResponse =
-        spfService.testSPF(returnPathDomain, fromDomain, dmarcTagValueMap);
+        spfService.testSPF(returnPathDomain, fromDomain, dmarcTagValueMap, fields);
 
     DKIMVerificationResponse dkimVerificationResponse = dkimService.testDKIM(mailFile,
         dmarcTagValueMap);
 
+    dmarcVerificationResponse.setCompliant(
+        dmarcService.checkDMARCCompliance(spfVerificationResponse, dkimVerificationResponse));
     URLResponse urlResponse = urlService.analyzeMailUrls(mimeMessageObj);
 
     return MailAnalysisResponse.builder()
@@ -142,7 +106,6 @@ public class MailService {
         .spfVerificationResponse(spfVerificationResponse)
         .dkimVerificationResponse(dkimVerificationResponse).urlResponse(urlResponse).build();
   }
-
 
   private Email getEmail(MultipartFile mailFile) throws IOException, MimeException {
     CustomContentHandler contentHandler = new CustomContentHandler();
@@ -157,18 +120,5 @@ public class MailService {
     return contentHandler.getEmail();
   }
 
-
-
-  /*//TODO ovo ne radi, jer nema veze koji je domen, njega interesuje samo ovaj spf record koji
-  // saljem, a tipa za gmail je v=spf1 redirect=_spf.google.com, pa ispadne da ima samo jedan lookup
-  private int getNumOfLookups(String domain, String spfRecord) throws IOException, JSONException {
-    final String uri = apiProperties.getNetworkcalcUri() + domain;
-
-    RestTemplate restTemplate = new RestTemplate();
-    ObjectMapper mapper = new ObjectMapper();
-    JSONObject jsonObject = new JSONObject(restTemplate.postForObject(uri,
-        new NetworkcalcRequest(spfRecord), String.class));
-    return jsonObject.getJSONObject("validation").getInt("total_lookups");
-  }*/
 }
 

@@ -4,7 +4,7 @@ import java.time.Duration;
 import java.util.Date;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.unibl.etf.phishtector.response.techniknews.IPAnalysisResponse;
+import org.unibl.etf.phishtector.response.techniknews.IpAnalysisResponse;
 
 @Data
 @NoArgsConstructor
@@ -14,5 +14,6 @@ public class Hop {
   private String by;
   private String with;
   private Date dateTime;
-  private IPAnalysisResponse ipAnalysisResponse;
+  private IpAnalysisResponse ipAnalysisResponse;
+  private boolean blacklisted;
 }

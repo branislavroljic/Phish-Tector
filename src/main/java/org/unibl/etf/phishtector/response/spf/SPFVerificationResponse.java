@@ -43,8 +43,5 @@ public class SPFVerificationResponse {
   //Using +all is discouraged
   private boolean noAnyPassMechanism;
 
-  //TODO skontaj sta je ovo, nesto oko DNS record type of SPF (type 99) is now depricated
-  private boolean deprecated;
-
   private String exceptionMessage;
 }

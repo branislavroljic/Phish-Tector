@@ -1,6 +1,7 @@
 package org.unibl.etf.phishtector.service;
 
 import com.google.common.base.CharMatcher;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -13,6 +14,7 @@ import org.apache.james.jspf.core.impl.DefaultSPF;
 import org.apache.james.jspf.core.impl.DefaultTermsFactory;
 import org.apache.james.jspf.executor.FutureSPFResult;
 import org.apache.james.jspf.parser.RFC4408SPF1Parser;
+import org.apache.james.mime4j.stream.Field;
 import org.springframework.stereotype.Service;
 import org.unibl.etf.phishtector.config.MailHeaderProperties;
 import org.unibl.etf.phishtector.model.SPFTag;
@@ -29,7 +31,8 @@ public class SPFService {
   private static final String SPF_MODIFIER_QUALIFIER = "+";
 
   public SPFVerificationResponse testSPF(String returnPathDomain,
-      String fromDomain, Map<String, String> dmarcTagValueMap) {
+      String fromDomain, Map<String, String> dmarcTagValueMap,
+      List<Field> fields) {
 
     SPFVerificationResponse spfVerificationResponse = new SPFVerificationResponse();
     try {
@@ -38,17 +41,32 @@ public class SPFService {
       long numOfSpfRecords = countNumOfSpfRecords(records);
       String spfRecord = getSpfRecord(records);
 
-      if (spfRecord != null) {
+      Field receivedSPF =
+          fields.stream().filter(f -> f.getName().equals("Received-SPF")).findFirst().orElse(null);
 
-        //TODO skontaj koja IP adresa i koji hostName treba!
-        FutureSPFResult futureSPFResult = new DefaultSPF().checkSPF("209.85.220.41",
-            "jadranmoon.com"
-            , "google.com");
+      if (spfRecord != null && receivedSPF != null) {
+        FutureSPFResult futureSPFResult;
 
+        String clientIpAddress =
+            Arrays.stream(receivedSPF.getBody().split(" ")).filter(f -> f.startsWith(
+                "client-ip")).findFirst().orElse(null);
+        if (clientIpAddress != null) {
+          String ipAddress = clientIpAddress.split("=")[1];
+          if (ipAddress.endsWith(";")) {
+            ipAddress = ipAddress.substring(0, ipAddress.indexOf(";"));
+          }
+          futureSPFResult = new DefaultSPF().checkSPF(ipAddress,
+              returnPathDomain,
+              "google.com");
+          spfVerificationResponse.setIpAddress(ipAddress);
+        } else {
+          futureSPFResult = new DefaultSPF().checkSPF(null,
+              returnPathDomain
+              , "google.com");
+        }
         SPF1Record spf1Record = parseDirectivesAndModifiers(
             spfRecord);
         spfVerificationResponse.setDomain(returnPathDomain);
-        spfVerificationResponse.setIpAddress("209.85.220.41");
         spfVerificationResponse.setDirectives(spf1Record.getDirectives().stream()
             .map(d -> new SPFTag(d.getQualifier(), d.getMechanism().toString())).toList());
         spfVerificationResponse.setModifiers(spf1Record.getModifiers().stream()
@@ -63,7 +81,7 @@ public class SPFService {
         spfVerificationResponse.setValidSyntax(true);
         spfVerificationResponse.setNoCharsAfterALL(checkForNoCharsAfterAll(spfRecord));
         spfVerificationResponse.setNumOfLookups(futureSPFResult.getSpfSession().getCurrentDepth());
-    //    spfVerificationResponse.setValidLength(checkSpfRecordLength(spfRecord));
+        //    spfVerificationResponse.setValidLength(checkSpfRecordLength(spfRecord));
         spfVerificationResponse.setNoPTRFound(!isPTRFound(spfRecord));
         spfVerificationResponse.setNoAnyPassMechanism(!anyPassMechanismPresent(spfRecord));
 
@@ -76,36 +94,6 @@ public class SPFService {
     }
     return spfVerificationResponse;
   }
-
-//  public boolean checkSpfAlignment(String from, String returnPath,
-//      String dmarcRecord, String dmarcAspfValue) {
-
-//    //TODO ovdje bih mogao provjeriti da li domeni uopste postoje, sa  InetAddress inetAddress = InetAddress.getByName("yahoo.com");
-//    InternetDomainName fromDomain = InternetDomainName.from(from);
-//    InternetDomainName returnPathDomain = InternetDomainName.from(returnPath);
-//    System.out.println("fromDomain.parent().equals(returnPathDomain):  " +
-//        fromDomain.parent().equals(returnPathDomain));
-//
-//    System.out.println("Poredim: " + fromDomain.toString() + " : " + returnPathDomain.toString());
-//
-//    if (from.equals(returnPath)) {
-//      return true;
-//    } else if (fromDomain.parent().equals(returnPathDomain) || returnPathDomain
-//        .parent().equals(fromDomain)) {
-//      if (dmarcRecord == null) {
-//        return true;
-//      } else {
-////        Matcher aspfDmarcMatcher = aspfDmarcPattern.matcher(dmarcRecord);
-////        if (!aspfDmarcMatcher.find() || aspfDmarcMatcher.group(1)
-////            .startsWith(mailHeaderProperties.getDmarcAspfRelaxed())) {
-////          return true;
-////        }
-//        return !dmarcTagValueMap.containsKey("aspf") || dmarcTagValueMap.get("aspf")
-//            .startsWith("r");
-//      }
-//    }
-//    return false;
-  // }
 
   private SPF1Record parseDirectivesAndModifiers(String spfRecord)
       throws PermErrorException, NoneException, NeutralException {
@@ -141,11 +129,6 @@ public class SPFService {
         .filter(r -> r.startsWith(mailHeaderProperties.getSpfVersion())).findFirst()
         .orElse(null);
   }
-
-  //ovo nije tacno, duzina stringa ne smije biti veca od 255, ali SPF record moze
-//  private boolean checkSpfRecordLength(String spfRecord) {
-//    return spfRecord.length() <= 255;
-//  }
 
   private boolean isPTRFound(String spfRecord) {
     Pattern pattern = Pattern.compile("ptr(:.*)?");

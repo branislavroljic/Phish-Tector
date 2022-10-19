@@ -13,6 +13,4 @@ public class GoogleSafeBrowsingResponse {
   private String threatType;
   private String platformType;
   private ThreatEntry threat;
-  private String cacheDuration;
-  private String threatEntryType;
 }

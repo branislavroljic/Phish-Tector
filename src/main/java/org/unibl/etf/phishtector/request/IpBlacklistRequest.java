@@ -3,8 +3,10 @@ package org.unibl.etf.phishtector.request;
 import lombok.Builder;
 import lombok.Data;
 
-@Data
 @Builder
-public class GoogleSafeBrowsingRequest {
- private ThreatInfo threatInfo;
+@Data
+public class IpBlacklistRequest {
+
+  private String apikey;
+  private String ip;
 }

@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class DMARCVerificationResponse {
 
+  private boolean compliant;
   private String domain;
   private String dmarcRecord;
   private boolean recordPublished;

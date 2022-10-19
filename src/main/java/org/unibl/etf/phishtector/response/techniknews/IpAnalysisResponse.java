@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class IPAnalysisResponse {
+public class IpAnalysisResponse {
   private String status;
   private String continent;
   private String country;

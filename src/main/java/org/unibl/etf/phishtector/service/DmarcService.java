@@ -16,6 +16,9 @@ import org.unibl.etf.phishtector.exception.HttpException;
 import org.unibl.etf.phishtector.exception.MultipleRecordsFoundException;
 import org.unibl.etf.phishtector.exception.NoRecordFoundException;
 import org.unibl.etf.phishtector.exception.SyntaxException;
+import org.unibl.etf.phishtector.response.dkim.DKIMSignatureRecordResponse;
+import org.unibl.etf.phishtector.response.dkim.DKIMVerificationResponse;
+import org.unibl.etf.phishtector.response.spf.SPFVerificationResponse;
 import org.xbill.DNS.Lookup;
 import org.xbill.DNS.Name;
 import org.xbill.DNS.Record;
@@ -66,12 +69,6 @@ public class DmarcService {
   public Map<String, String> parse(String dmarcRecord) {
 
     Matcher versionMatcher = dmarcVersionRegex.matcher(dmarcRecord);
-    // check the version "header"
-//    if (!dmarcRecord.startsWith(DMARC_VERSION_SEMICOLON + " ") && !dmarcRecord.equalsIgnoreCase(
-//        DMARC_VERSION)) {
-//      throw new SyntaxException(
-//          "Empty DMARC record");
-//    }
 
     if (!versionMatcher.find()) {
       throw new SyntaxException(
@@ -119,7 +116,6 @@ public class DmarcService {
     if (tagValueMap.containsKey("ruf")) {
       parseDestinationHosts(destinationHosts, tagValueMap.get("ruf"), fromDomain);
     }
-
 
     for (String domainToCheck : destinationHosts) {
 //      Prepend the string "_report._dmarc".
@@ -179,6 +175,31 @@ public class DmarcService {
       }
     }
     throw new HttpException("DMARC Policy check terminated! Cannot find 'p' tag or 'rua' tag");
+  }
+
+  //for DMARC compliance based on DKIM, we check if at least one DKIM header field is authorized
+  // and aligned https://www.rfc-editor.org/rfc/rfc6376.html#section-6.1
+  public boolean checkDMARCCompliance(SPFVerificationResponse spfVerificationResponse,
+      DKIMVerificationResponse dkimVerificationResponse) {
+    return spfVerificationResponse.getAuthenticationResult().equals("pass")
+        && spfVerificationResponse.isSignatureDomainAligned()
+        || (dkimVerificationResponse.getExceptionResponses() == null
+        || dkimVerificationResponse.getExceptionResponses().isEmpty())
+        && checkDMARCComplianceForDKIM(dkimVerificationResponse.getSignatureRecords());
+  }
+
+  private boolean checkDMARCComplianceForDKIM(
+      List<DKIMSignatureRecordResponse> dkimSignatureRecordResponses) {
+    if (dkimSignatureRecordResponses == null) {
+      return false;
+    }
+    for (DKIMSignatureRecordResponse dkimSignatureRecordResponse : dkimSignatureRecordResponses) {
+      if (dkimSignatureRecordResponse.isBodyHashVerified()
+          && dkimSignatureRecordResponse.isDkimSignatureAligned()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private String getDMARCRecordForPolicyDiscovery(String fromDomain)

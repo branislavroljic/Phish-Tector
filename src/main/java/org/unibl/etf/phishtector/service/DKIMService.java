@@ -70,20 +70,6 @@ public class DKIMService {
         .signatureRecords(dkimSignatureRecordResponses)
         .exceptionResponses(dkimFailExceptionResponses).exceptionMessage(null).build();
 
-//    HttpHeaders headers = new HttpHeaders();
-//    headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-//    MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-//    body.add("mail", mailFile.getResource());
-//
-//    HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-//
-//    ResponseEntity<DKIMVerificationResponse> response =
-//        restTemplate.postForEntity(
-//            apiProperties.getDkimService(),
-//            requestEntity,
-//            DKIMVerificationResponse.class);
-//
-//    System.out.println(response.getBody());
   }
 
 
